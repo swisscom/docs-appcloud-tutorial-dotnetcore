@@ -1,0 +1,266 @@
+---
+title: Bind a Service to Your App
+owner: Tobias Fuhrimann
+---
+
+<strong><%= modified_date %></strong>
+
+The <a href="../service-offerings/index.html" target="_blank">service marketplace</a> has a large number of data stores, from Redis and MongoDB, to MariaDB (fork of MySQL) and RabbitMQ. You can run `cf marketplace` to get an overview. In this step you will add a small MongoDB database to your app.
+
+In this tutorial we'll create a REST API to create and store kittens.
+
+First, create the database:
+
+<pre class="terminal">
+$ cf create-service mongodb small my-mongodb
+Creating service instance my-mongodb in org MyOrg / space MySpace as user@mydomain.com...
+OK
+
+Create in progress. Use 'cf services' or 'cf service my-mongodb' to check operation status.
+
+Attention: The plan `small` of service `mongodb` is not free. The instance `my-mongodb` will incur a cost. Contact your administrator if you think this is in error.
+</pre>
+
+This creates a small MongoDB database for you which we now have to bind to our application. Binding means that the credentials and URL of the service will be written dynamically into the environment variables of the app as `VCAP_SERVICES` and can hence be used directly from there.
+
+Let's bind the new service to our existing application:
+
+<pre class="terminal">
+$ cf bind-service my-dotnet-app my-mongodb
+Binding service my-mongodb to app my-dotnet-app in org MyOrg / space MySpace as user@mydomain.com...
+OK
+TIP: Use 'cf restage my-dotnet-app' to ensure your env variable changes take effect
+</pre>
+
+<p class="note">
+  <strong>Note</strong>: If you are getting <code>Server error, status code: 409</code>, please try again after a couple of minutes. It takes a while to spin up that MongoDB for you.
+</p>
+
+After that we restage the application as suggested so that it includes the new credentials in its environment variables:
+
+<pre class="terminal">
+$ cf restage my-dotnet-app
+Restaging app my-app in org MyOrg / space MySpace as user@mydomain.com...
+Creating container
+Successfully created container
+Downloading app package...
+
+...
+</pre>
+
+Now we want to consume our new MongoDB from within our application. Add the respective driver to the `dependencies` section of our `project.json` file. Also, we'll use ASP.NET MVC to create our API so we'll need to add that as well:
+
+```json
+...
+
+"dependencies": {
+  "Microsoft.NETCore.App": {
+    "type": "platform",
+    "version": "1.0.1"
+  },
+  "Microsoft.Extensions.Configuration.CommandLine": "1.0.0",
+  "Microsoft.AspNetCore.Server.Kestrel": "1.0.0"
+  "Microsoft.AspNetCore.Server.Kestrel": "1.0.0",
+  "Microsoft.AspNetCore.Mvc": "1.0.1",
+  "MongoDB.Driver": "2.3.0"
+},
+
+...
+```
+
+Now add a `Models` folder and inside it, add a new class file of name `Kitten.cs` with the following code:
+
+```csharp
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+
+namespace CfSampleAppDotNet.Models
+{
+    public class Kitten
+    {
+        public ObjectId Id { get; set; }
+        [BsonElement("name")]
+        public string Name { get; set; }
+    }
+}
+````
+
+The class contains an Id property of the type ObjectId. This property is mandatory so that the CLR object can be mapped with Collection in MongoDB. The class contains properties having the BsonElement attribute applied on it. These represent the mapped property with the MongoDB collection.
+
+Next, we'll create a repository class and -interface to access our kittens. This is where all the access to MongoDB happens. First, let's create the class. Create a file `KittenRepository.cs` in the `Models` folder with the following content:
+
+```csharp
+using MongoDB.Driver;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+
+namespace CfSampleAppDotNet.Models
+{
+    public class KittenRepository : IKittenRepository
+    {
+        private MongoClient _client;
+        private IMongoDatabase _db;
+
+        public KittenRepository()
+        {
+            if (Environment.GetEnvironmentVariable("VCAP_SERVICES") != null)
+            {
+                var vcapServices = JsonConvert.DeserializeObject<VcapServices>(Environment.GetEnvironmentVariable("VCAP_SERVICES"));
+
+                _client = new MongoClient(vcapServices.mongodb[0].credentials.uri);
+                _db = _client.GetDatabase(vcapServices.mongodb[0].credentials.database);
+            }
+            else
+            {
+                _client = new MongoClient("mongodb://localhost:27017");
+                _db = _client.GetDatabase("db");
+            }
+        }
+
+        public IEnumerable<Kitten> Find()
+        {
+            return _db.GetCollection<Kitten>("Kittens").Find(_ => true).ToList();
+        }
+
+        public Kitten Create(Kitten kitten)
+        {
+            _db.GetCollection<Kitten>("Kittens").InsertOne(kitten);
+            return kitten;
+        }
+    }
+}
+```
+
+The line
+
+```csharp
+if (Environment.GetEnvironmentVariable("VCAP_SERVICES") != null)
+```
+
+checks if the app is running in the cloud. If not, it falls back to the default local MongoDB url. This allows you to run your app locally as well as in the cloud without having to configure anything differently. To do so, it requires the `VcapServices` class, which we need to create. So let's create another file `VcapServices.cs` in the `Models` folder with the following content:
+
+```csharp
+namespace CfSampleAppDotNet.Models
+{
+    public class VcapServices
+    {
+        public MongoDB[] mongodb { get; set; }
+        public class MongoDB
+        {
+            public Credentials credentials { get; set; }
+
+            public class Credentials
+            {
+                public string uri  { get; set; }
+                public string database  { get; set; }
+            }
+        }
+    }
+}
+```
+
+This class represents the JSON structure in which we get the credentials to our database in the environment variables of our app.
+
+Now, let's create the interface to our new repository class. Create a file called `IKittenRepository.cs` in `Models` with the following content:
+
+```csharp
+using System.Collections.Generic;
+
+namespace CfSampleAppDotNet.Models
+{
+    public interface IKittenRepository
+    {
+        Kitten Create(Kitten kitten);
+        IEnumerable<Kitten> Find();
+    }
+}
+```
+
+We still need a controller for the framework to interact with our new repository. Create a `Controllers` folder and inside a `KittenController.cs` file with the following content:
+
+```csharp
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Mvc;
+using CfSampleAppDotNet.Models;
+
+namespace CfSampleAppDotNet.Controllers
+{
+    [Route("[controller]")]
+    public class KittenController : Controller
+    {
+        public KittenController(IKittenRepository kittens)
+        {
+            Kittens = kittens;
+        }
+        public IKittenRepository Kittens { get; set; }
+
+        [HttpGet]
+        public IEnumerable<Kitten> Find()
+        {
+            return Kittens.Find();
+        }
+
+        [HttpPost]
+        public IActionResult Create([FromBody] Kitten kitten)
+        {
+            if (kitten == null)
+            {
+                return BadRequest();
+            }
+            Kittens.Create(kitten);
+            return StatusCode(201);
+        }
+    }
+}
+```
+
+This controller interacts with the repository. We'll just need to hook it up to our `Startup.cs`. We need to change it to use the MVC architecture. Change the simple file we had to the following:
+
+```csharp
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using CfSampleAppDotNet.Models;
+
+namespace CfSampleAppDotNet
+{
+    public class Startup
+    {
+        public void ConfigureServices(IServiceCollection services)
+        {
+            services.AddMvc();
+
+            services.AddSingleton<IKittenRepository, KittenRepository>();
+        }
+
+        public void Configure(IApplicationBuilder app)
+        {
+            app.UseMvc();
+        }
+    }
+}
+```
+
+This removes the simple `app.Run` we had before and replaces it with our new kitten service.
+
+We just added the `/kitten` route to our app. It will return all the kittens stored in your database. Currently there are no kittens so it will return an empty array. Sad...
+
+But you can create new kittens by POST-ing to the `/kitten` endpoint with the kitten's name a the payload. You can do so using curl or any similar tool:
+
+<pre class="terminal">
+$ curl -X POST "http://localhost:5000/kitten" --header "Content-Type: application/json" -d '{"name":"garfield"}'
+</pre>
+
+and then retrieve your new kitten at the `/kitten` endpoint.
+
+Now that the app is ready, let's push it to the cloud using
+
+<pre class="terminal">
+$ cf push my-dotnet-app
+</pre>
+
+You can access other services like Redis or MariaDB in a similar matter, simply by binding them to your app and accessing them through the environment variables.
+
+<div style="text-align:center;padding:3em;">
+  <a href="./manifest.html" class="btn btn-primary">I've bound a service to my App</a>
+</div>
