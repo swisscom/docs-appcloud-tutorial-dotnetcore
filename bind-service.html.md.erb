@@ -51,8 +51,6 @@ Downloading app package...
 Now we want to consume our new MongoDB from within our application. Add the respective driver to the `dependencies` section of our `project.json` file. Also, we'll use ASP.NET MVC to create our API so we'll need to add that as well:
 
 ```json
-...
-
 "dependencies": {
   "Microsoft.NETCore.App": {
     "type": "platform",
@@ -63,9 +61,7 @@ Now we want to consume our new MongoDB from within our application. Add the resp
   "Microsoft.AspNetCore.Server.Kestrel": "1.0.0",
   "Microsoft.AspNetCore.Mvc": "1.0.1",
   "MongoDB.Driver": "2.3.0"
-},
-
-...
+}
 ```
 
 Now add a `Models` folder and inside it, add a new class file of name `Kitten.cs` with the following code:
