@@ -66,7 +66,7 @@ Now we want to consume our new MongoDB from within our application. Add the resp
 
 Now add a `Models` folder and inside it, add a new class file of name `Kitten.cs` with the following code:
 
-```csharp
+```c#
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
@@ -85,7 +85,7 @@ The class contains an Id property of the type ObjectId. This property is mandato
 
 Next, we'll create a repository class and -interface to access our kittens. This is where all the access to MongoDB happens. First, let's create the class. Create a file `KittenRepository.cs` in the `Models` folder with the following content:
 
-```csharp
+```c#
 using MongoDB.Driver;
 using Newtonsoft.Json;
 using System;
@@ -130,13 +130,13 @@ namespace CfSampleAppDotNet.Models
 
 The line
 
-```csharp
+```c#
 if (Environment.GetEnvironmentVariable("VCAP_SERVICES") != null)
 ```
 
 checks if the app is running in the cloud. If not, it falls back to the default local MongoDB url. This allows you to run your app locally as well as in the cloud without having to configure anything differently. To do so, it requires the `VcapServices` class, which we need to create. So let's create another file `VcapServices.cs` in the `Models` folder with the following content:
 
-```csharp
+```c#
 namespace CfSampleAppDotNet.Models
 {
     public class VcapServices
@@ -160,7 +160,7 @@ This class represents the JSON structure in which we get the credentials to our 
 
 Now, let's create the interface to our new repository class. Create a file called `IKittenRepository.cs` in `Models` with the following content:
 
-```csharp
+```c#
 using System.Collections.Generic;
 
 namespace CfSampleAppDotNet.Models
@@ -175,7 +175,7 @@ namespace CfSampleAppDotNet.Models
 
 We still need a controller for the framework to interact with our new repository. Create a `Controllers` folder and inside a `KittenController.cs` file with the following content:
 
-```csharp
+```c#
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using CfSampleAppDotNet.Models;
@@ -213,7 +213,7 @@ namespace CfSampleAppDotNet.Controllers
 
 This controller interacts with the repository. We'll just need to hook it up to our `Startup.cs`. We need to change it to use the MVC architecture. Change the simple file we had to the following:
 
-```csharp
+```c#
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using CfSampleAppDotNet.Models;
