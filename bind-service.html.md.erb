@@ -51,16 +51,36 @@ Downloading app package...
 Now we want to consume our new MongoDB from within our application. Add the respective driver to the `dependencies` section of our `project.json` file. Also, we'll use ASP.NET MVC to create our API so we'll need to add that as well:
 
 ```json
-"dependencies": {
-  "Microsoft.NETCore.App": {
-    "type": "platform",
-    "version": "1.0.1"
+{
+  "version": "1.0.0-*",
+  "buildOptions": {
+    "debugType": "portable",
+    "emitEntryPoint": true,
+    "copyToOutput": {
+      "include": [
+        "wwwroot",
+        "Areas/**/Views",
+        "Views",
+        "appsettings.json"
+      ]
+    }
   },
-  "Microsoft.Extensions.Configuration.CommandLine": "1.0.0",
-  "Microsoft.AspNetCore.Server.Kestrel": "1.0.0"
-  "Microsoft.AspNetCore.Server.Kestrel": "1.0.0",
-  "Microsoft.AspNetCore.Mvc": "1.0.1",
-  "MongoDB.Driver": "2.3.0"
+  "dependencies": {},
+  "frameworks": {
+    "netcoreapp1.0": {
+      "dependencies": {
+        "Microsoft.NETCore.App": {
+          "type": "platform",
+          "version": "1.0.1"
+        },
+        "Microsoft.Extensions.Configuration.CommandLine": "1.0.0",
+        "Microsoft.AspNetCore.Server.Kestrel": "1.0.0",
+        "Microsoft.AspNetCore.Mvc": "1.0.1",
+        "MongoDB.Driver": "2.3.0"
+      },
+      "imports": "dnxcore50"
+    }
+  }
 }
 ```
 
