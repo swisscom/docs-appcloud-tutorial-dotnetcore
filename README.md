@@ -1,3 +1,3 @@
-# .NET on Cloud Foundry Tutorial
+# .NET Core on Cloud Foundry Tutorial
 
-A step-by-step getting started tutorial for .NET on Cloud Foundry
+A step-by-step getting started tutorial for .NET Core on Cloud Foundry
