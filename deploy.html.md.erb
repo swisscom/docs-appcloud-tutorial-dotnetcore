@@ -10,7 +10,7 @@ In this step you will deploy the app to <%= vars.product_full %>.
 Push your app to the cloud by executing the following command and replacing the "my-random-hostname" with your own hostname. This will be part of the URL your app will be reached at and it has to be globally unique so be creative. The `-m 64M` tells Cloud Foundry to use 64MB of memory for our app which should be plenty. The `-b` tells Cloud Foundry to use the .NET Core buildpack.
 
 <pre class="terminal">
-$ cf push my-dotnetcore-app -m 64M -n my-random-hostname -b https://github.com/cloudfoundry-community/dotnet-core-buildpack.git
+$ cf push my-dotnetcore-app -m 64M -n my-random-hostname -b https://github.com/cloudfoundry/dotnet-core-buildpack.git
 Creating app my-dotnetcore-app in org MyOrg / space MySpace as user@mydomain.com...
 OK
 
